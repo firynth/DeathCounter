@@ -1,0 +1,683 @@
+<html>
+<head>
+    <link rel="stylesheet" type="text/css" href="deathcount.css"/>
+</head>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
+<script src="twitchIRC.js"></script>
+<script src="config.js"></script>
+<script src="jquery.keyframes.min.js"></script>
+<script src="reconnecting-websocket.min.js"></script>
+<script>
+var localStorageName = "deathCounter", userLocalStorage = "deatherCounterUsers";
+var deaths = localStorage.getItem(localStorageName) !== null ? JSON.parse(localStorage.getItem(localStorageName)) : {
+    'totalDeaths': 0,
+    'currentDeaths': 0,
+    'currentBoss': "",
+    'bosses': {},
+    'onBoss': false,
+    'finished': false,
+    'name': ""
+};
+
+var games = localStorage.getItem(localStorageName + "-games") !== null ? JSON.parse(localStorage.getItem(localStorageName + "-games")) : {
+};
+
+var gamesArray = [];
+
+var users = localStorage.getItem(userLocalStorage) !== null ? JSON.parse(localStorage.getItem(userLocalStorage)) : {
+    array: [],
+    mod_enabled: true
+};
+
+var updating = false, loaded = false;
+var options = {
+    "AutoRejoin": true,
+    "channels": [watchChannel.toLowerCase()]
+};
+var irc = new twitchIRC(botUser.toLowerCase(), secret, options);
+
+console.log("Bloop");
+$().ready(function () {
+    $(".text").hide();
+    if(deaths.onBoss) {
+        $("#deathDiv").css("transform", "translateY(-3.5em)");
+    }
+});
+
+irc.on("join", function(channel, user) {
+    if(user === botUser && !loaded) {
+        loaded = true;
+        $("#totalDeaths").html(deaths.totalDeaths);
+        $("#currentDeaths").html(deaths.currentDeaths);
+        $("#boss").html(deaths.currentBoss);
+        if(deaths.onBoss) {
+            $("#bossDiv").show();
+        }
+        $(".text").css("display", "inline-block").fadeIn(1000);
+        updateGamesArray();
+    }
+});
+
+irc.on("message", function(channel, user, chatText, message) {
+    var args = chatText.split(" ");
+    var deathText = "";
+
+    if(!(/^(\!)/).test(chatText)) {
+        // Not the right prefix for the bot
+        return;
+    }
+
+    var args = chatText.substring(1).split(" ");
+
+    if(args[0] === deathCounterCommand) {
+        if(updating) {
+            return;
+        } else if (deaths.finished && args[1] !== "reset") {
+            console.log("Game is done");
+            return;
+        }
+        switch(args[1]){
+            case "+":
+            {
+                if(!checkMod(message, channel, user)) {
+                    return;
+                }
+                if(/^[0-9]*$/.test(args[2])) {
+                    alterDeathCount(parseInt(args[2]));
+                } else {
+                    alterDeathCount(1);
+                }
+                break;
+            }
+            case "-":
+            {
+                if(!checkMod(message, channel, user)) {
+                    return;
+                }
+                if(/^[0-9]*$/.test(args[2])) {
+                    alterDeathCount(-(parseInt(args[2])));
+                } else {
+                    alterDeathCount(-1);
+                }
+                break;
+            }
+            case "set":
+            {
+                if(!checkMod(message, channel, user)) {
+                    return;
+                }
+                if(isNaN(args[2])) {
+                    irc.msg(channel, "Value must be a number.");
+                    return;
+                }
+                let newDeaths = parseInt(args[2], 10);
+                if(newDeaths <= deaths.totalDeaths) {
+                    irc.msg(channel, "Value must be greater than total deaths.");
+                    return;
+                }
+                alterDeathCount(newDeaths - deaths.totalDeaths);
+                break;
+            }
+            case "newboss":
+            {
+                if(!checkMod(message, channel, user)) {
+                    return;
+                }
+                var newBoss = args.slice(2).join(" ");
+                if(newBoss === "") {
+                    return;
+                } else if (deaths.bosses[newBoss] !== undefined) {
+                    if(deaths.bosses[newBoss].killed) {
+                        irc.msg(channel, "This boss has already been killed.");
+                        return;
+                    } else {
+                        irc.msg(channel, "Resuming unfinished boss.");
+                        deaths.currentBoss = deaths.bosses[newBoss].name;
+                        deaths.currentDeaths = deaths.bosses[newBoss].deaths;
+                    }
+                } else {
+                    deaths.currentBoss = newBoss;
+                    deaths.currentDeaths = 0;
+                    deaths.bosses[deaths.currentBoss] = {
+                        'name': deaths.currentBoss,
+                        'deaths': deaths.currentDeaths,
+                        'killed': false
+                    };
+                }
+                //Update html
+                if(deaths.onBoss) {
+                    updateBoss();
+                } else {
+                    $.when(transformDeathDiv(true, true)).then(function () {
+                        setTimeout(function() {
+                            updateBoss();
+                            deaths.onBoss = true;
+                            localStorage.setItem(localStorageName, JSON.stringify(deaths));
+                        }, 1200);
+                    });
+                }
+                break;
+            }
+            case "changename":
+            {
+                if(!checkMod(message, channel, user)) {
+                    return;
+                }
+                var newName = args.slice(2).join(" ");
+                if(newName === "" || newName === deaths.currentBoss) {
+                    break;
+                }
+                let oldBoss = deaths.currentBoss;
+                deaths.currentBoss = newName;
+                deaths.bosses[oldBoss].name = newName;
+                deaths.bosses[newName] = deaths.bosses[oldBoss];
+                delete deaths.bosses[oldBoss];
+                $("#boss").fadeOut(1000, function() {
+                    $("#boss").html(deaths.currentBoss);
+                    $("#boss").fadeIn(1000);
+                });
+                break;
+            }
+            case "boss":
+            {
+                if(!checkMod(message, channel, user)) {
+                    return;
+                }
+                var kill = false;
+                if(deaths.bosses[deaths.currentBoss].killed) {
+                    irc.msg(channel, "Current boss is dead. Please use <" + deathCounterCommand + " newboss> to start a new boss.");
+                    return;
+                }
+                if(args[2] && args[2] === "clear") {
+                    kill = true;
+                    irc.msg(watchChannel, deaths.currentBoss + " has been slain. " + deaths.currentDeaths + (deaths.currentDeaths === 1 ? " life was " : " lives were ") + "consumed in the attempt.");
+                }
+                toggleBoss(kill);
+                break;
+            }
+            case "reset":
+            {
+                if(!checkMod(message, channel, user)) {
+                    return;
+                }
+                let index = gamesArray.findIndex(function(g) {
+                    return g.toLowerCase() === deaths.name.toLowerCase();
+                });
+                if(index !== -1) {
+                    delete games[deaths.name];
+                }
+                updateGamesArray();
+                deaths = {
+                    'totalDeaths': 0,
+                    'currentDeaths': 0,
+                    'currentBoss': "",
+                    'bosses': {},
+                    'onBoss': false,
+                    'finished': false,
+                    'name': ""
+                };
+                $.when(transformDeathDiv(false, false), updateDeaths("#totalDeaths", "#currentDeaths")).then(function() {
+                    $("#boss").html("");
+                    $("#currentDeaths").html("");
+                });
+                break;
+            }
+            case "finish":
+            {
+                if(!checkMod(message, channel, user)) {
+                    return;
+                }
+                deathText = "Final tally: ";
+                deathText += listBosses();
+                deathText += "; " + "Total Deaths: " + deaths.totalDeaths;
+                deaths.finished = true;
+                outputText(channel, deathText);
+                break;
+            }
+            case "list":
+            {
+                deathText += listBosses();
+                outputText(channel, deathText);
+                break;
+            }
+            case "resume":
+            {
+                if(!checkMod(message, channel, user)) {
+                    return;
+                }
+                var name = args.slice(2).join(" ");
+                if(deaths.bosses[name] !== undefined) {
+                    if(deaths.bosses[name].killed) {
+                        irc.msg(channel, deaths.bosses[name].name + " is dead, Jim.");
+                        return;
+                    }
+                    deaths.currentBoss = deaths.bosses[name].name;
+                    deaths.currentDeaths = deaths.bosses[name].deaths;
+                    //Update html
+                    if(deaths.onBoss) {
+                        updateBoss();
+                    } else {
+                        $.when(transformDeathDiv(true, true)).then(function () {
+                            setTimeout(function() {
+                                updateBoss();
+                                deaths.onBoss = true;
+                                localStorage.setItem(localStorageName, JSON.stringify(deaths));
+                            }, 1200);
+                        });
+                    }
+                } else {
+                    irc.msg(channel, "That boss does not exist.");
+                }
+                break;
+            }
+            case "enablemod":
+            {
+                if(channel !== "#" + user) {
+                    return;
+                }
+                users.mod_enabled = !users.mod_enabled;
+                irc.msg(channel, "Mod usage is " + (users.mod_enabled ? "enabled.": "disabled."));
+                localStorage.setItem(userLocalStorage, JSON.stringify(users));
+                break;
+            }
+            case "adduser":
+            case "deluser":
+            {
+                if(channel !== "#" + user) {
+                    return;
+                }
+                if(!args[2]) {
+                    irc.msg(channel, "No user was provided.");
+                    return;
+                }
+                let person = args[2].toLowerCase();
+                let userIndex = users.array.findIndex(function(u) {
+                    return u === person;
+                });
+                if(args[1] === "adduser") {
+                    if(userIndex === -1) {
+                        users.array.push(person);
+                        irc.msg(channel, `Added ${person} to the list of authorized users.`);
+                    } else {
+                        irc.msg(channel, "User is already added to the list.");
+                    }
+                } else {
+                    if(userIndex !== -1) {
+                        users.array.splice(userIndex, 1);
+                        irc.msg(channel, `Removed ${person} from the list of authorized users.`);
+                    } else {
+                        irc.msg(channel, "User does not exist in list.");
+                    }
+                }
+                console.log(users);
+                localStorage.setItem(userLocalStorage, JSON.stringify(users));
+                break;
+            }
+            case "gamename":
+            {
+                if(!checkMod(message, channel, user)) {
+                    return;
+                }
+                if(!args[2]) {
+                    irc.msg(channel, `Game name is: ${deaths.name}`);
+                    return;
+                }
+                args.splice(0, 2);
+                let name = args.join(" ");
+                let index = gamesArray.findIndex(function (g) {
+                    return g.toLowerCase() === name.toLowerCase();
+                });
+                let gindex = gamesArray.findIndex(function (g) {
+                    return g.toLowerCase() === deaths.name.toLowerCase();
+                });
+                if(index !== -1) {
+                    irc.msg(channel, "Game name provided is already used.");
+                } else if (deaths.name && gindex !== -1) {
+                    deaths.name = name;
+                    games[deaths.name] = deaths;
+                    delete games[gamesArray[gindex]];
+                    updateGamesArray();
+                    irc.msg(channel, `Game name changed to ${name}`);
+                } else {
+                    gamesArray.push(name);
+                    deaths.name = name;
+                    games[deaths.name] = deaths;
+                    irc.msg(channel, `Game name set to ${name}`);
+                }
+                break;
+            }
+            case "save":
+            {
+                if(!checkMod(message, channel, user)) {
+                    return;
+                }
+                if(!deaths.name) {
+                    irc.msg(channel, `No name provided for game. Please use "!${deathCounterCommand} gamename" to set the name.`);
+                    return;
+                }
+                games[deaths.name] = deaths;
+                deaths = {
+                    'totalDeaths': 0,
+                    'currentDeaths': 0,
+                    'currentBoss': "",
+                    'bosses': {},
+                    'onBoss': false,
+                    'finished': false,
+                    'name': ""
+                };
+                $.when(transformDeathDiv(false, false), updateDeaths("#totalDeaths", "#currentDeaths")).then(function() {
+                    $("#boss").html("");
+                    $("#currentDeaths").html("");
+                });
+                irc.msg(channel, `Death counter saved.`);
+                break;
+            }
+            case "load":
+            {
+                if(!checkMod(message, channel, user)) {
+                    return;
+                }
+                if(!args[2]) {
+                    irc.msg(channel, `Please provide a game name to load. "!${deathCounterCommand} gamelist" to see saved games.`);
+                    return;
+                }
+                args.splice(0, 2);
+                let name = args.join(" ");
+                let index = gamesArray.findIndex(function(g) {
+                    return g.toLowerCase() === name.toLowerCase();
+                });
+                if(index === -1) {
+                    irc.msg(channel, `Game provided is not in the list of games. "!${deathCounterCommand} gamelist" to see saved games.`)
+                } else if (deaths.totalDeaths > 0 && !deaths.name) {
+                    irc.msg(channel, `Please provide a game name or reset the current death counter.`);
+                } else {
+                    if(deaths.name) {
+                        games[deaths.name] = deaths;
+                    }
+                    updateGamesArray();
+                    deaths = games[gamesArray[index]];
+                    $.when(transformDeathDiv(deaths.onBoss, false), updateDeaths("#totalDeaths", "#currentDeaths")).then(function() {
+                        if(deaths.currentBoss) {
+                            $("#boss").html(deaths.currentBoss);
+                            $("#currentDeaths").html(deaths.currentDeaths);
+                        } else {
+                            $("#boss").html("");
+                            $("#currentDeaths").html("");
+                        }
+
+                    });
+                }
+                break;
+            }
+            case "gamelist":
+            {
+                if(!checkMod(message, channel, user)) {
+                    return;
+                }
+                let games = "";
+                for(const u of gamesArray) {
+                    games += u + "; ";
+                }
+                games = games.substr(0, games.length-2);
+                irc.msg(channel, "Saved games: " + games);
+                break;
+            }
+            case "fullreset":
+            {
+                if(!checkMod(message, channel, user)) {
+                    return;
+                }
+                deaths = deaths = {
+                    'totalDeaths': 0,
+                    'currentDeaths': 0,
+                    'currentBoss': "",
+                    'bosses': {},
+                    'onBoss': false,
+                    'finished': false,
+                    'name': ""
+                };
+                games = {};
+                updateGamesArray();
+                $.when(transformDeathDiv(false, false), updateDeaths("#totalDeaths", "#currentDeaths")).then(function() {
+                    $("#boss").html("");
+                    $("#currentDeaths").html("");
+                });
+                break;
+            }
+            case "help":
+            default:
+            {
+                if(!checkMod(message, channel, user)) {
+                    return;
+                }
+
+                irc.msg(channel, "Usage: [+|-|set] <num> | [newboss|changename] <bossname> | boss (clear) | resume | finish | reset | list | gamename <game name> | " +
+                 "save | load <game name> | gamelist | fullreset");
+                //irc.msg(channel, "Usage: + [num]/- [num]/newboss <boss name>/changename <boss name>/boss (clear)/resume/finish/reset/list")
+            }
+        }
+        updateStorage();
+        console.log(deaths);
+        console.log(games);
+        console.log(gamesArray);
+    }
+});
+
+function updateGamesArray() {
+    gamesArray = [];
+    for(const key in games) {
+        gamesArray.push(key);
+    }
+}
+
+function updateStorage() {
+    localStorage.setItem(localStorageName, JSON.stringify(deaths));
+    localStorage.setItem(localStorageName + "-games", JSON.stringify(games));
+}
+
+function checkMod (message, channel, user) {
+    if(channel === "#" + user) {
+        return true;
+    } else if(message.tags["user-type"] === "mod" && users.mod_enabled) {
+        return true;
+    } else if(users.array.findIndex(function(u) {
+        return u === user;
+    }) !== -1) {
+        return true;
+    }
+    return false;
+}
+
+function outputText(channel, text) {
+    let stringArray = [];
+    while(text.length > 500) {
+        let substring = text.substring(0, 500);
+        let lastSemiColon = substring.lastIndexOf(";")+1;
+        stringArray.push(substring.substring(0, lastSemiColon).trim());
+        text = text.slice(lastSemiColon).trim();
+    }
+    stringArray.push(text);
+    for(let i = 0; i < stringArray.length; i++) {
+        irc.msg(channel, stringArray[i]);
+    }
+}
+
+function listBosses() {
+    var output = "";
+    for(var boss in deaths.bosses) {
+        output += deaths.bosses[boss].name + ": " + deaths.bosses[boss].deaths + "; ";
+    }
+
+    return output.substr(0, output.length-2);
+}
+
+function updateDeaths(totalDeaths, currentDeaths) {
+    $.keyframe.define([{
+        name : 'rotateOut',
+        'from':   {"transform" : "perspective(0px) rotateY(0deg)", "opacity": "1"},
+        'to':  {"transform" : "perspective(0px) rotateY(-90deg)", "opacity": "0"}
+    }]);
+    $.keyframe.define([{
+        name : 'rotateIn',
+        'from':   {"transform" : "perspective(0px) rotateY(-90deg)", "opacity": "0"},
+        'to':  {"transform": "perspective(0px) rotateY(0deg)", "opacity": "1"}
+    }]);
+
+    $(totalDeaths).playKeyframe({
+        name: 'rotateOut',
+        duration: "300ms", //Try 300ms
+        "complete" : function(){
+            $(totalDeaths).html(deaths.totalDeaths);
+            $(totalDeaths).playKeyframe({
+                name: 'rotateIn',
+                duration: "500ms", //Try 500ms
+                "complete" : function() {
+                    $(totalDeaths).resetKeyframe();
+                    updating = false;
+                }
+            });
+        }
+    });
+    if(deaths.onBoss) {
+        $(currentDeaths).playKeyframe({
+            name: 'rotateOut',
+            duration: "300ms", //Try 300ms
+            "complete" : function(){
+                $(currentDeaths).html(deaths.currentDeaths);
+                $(currentDeaths).playKeyframe({
+                    name: 'rotateIn',
+                    duration: "500ms", //Try 500ms
+                    "complete" : function() {
+                        $(currentDeaths).resetKeyframe();
+                    }
+                });
+            }
+        });
+    }
+}
+
+function alterDeathCount(value) {
+    updating = true;
+    deaths.totalDeaths += value;
+    if(deaths.onBoss && !deaths.bosses[deaths.currentBoss].killed) {
+        deaths.currentDeaths += value;
+        deaths.bosses[deaths.currentBoss].deaths = deaths.currentDeaths;
+    }
+    updateDeaths("#totalDeaths", "#currentDeaths");
+    localStorage.setItem(localStorageName, JSON.stringify(deaths));
+}
+
+function transformDeathDiv(onBoss, removeUpdating) {
+    updating = true;
+    if(onBoss) {
+        $.keyframe.define([{
+            name : 'slideUp',
+            'from':   {"transform" : "translateY(0px)"},
+            'to':  {"transform" : "translateY(-3.5em)"}
+        }]);
+        $("#deathDiv").playKeyframe({
+            name: 'slideUp',
+            duration: "1000ms",
+            "complete" : function(){
+                $("#bossDiv").fadeIn(1000);
+                updating = false;
+            }
+        });
+    } else {
+        $.keyframe.define([{
+            name : 'slideDown',
+            'from':   {"transform" : "translateY(-3.5em)"},
+            'to':  {"transform" : "translateY(0px)"}
+        }]);
+        $("#bossDiv").fadeOut(1000, function() {
+            $("#deathDiv").playKeyframe({
+                name: 'slideDown',
+                duration: "1000ms",
+                "complete" : function(){
+                    if(removeUpdating) {
+                        updating = false;
+                    }
+                }
+            });
+        });
+    }
+}
+
+function updateBoss() {
+    $.keyframe.define([{
+        name : 'smoosh',
+        'from':   {"transform" : "scale(1,1)", "opacity" : "1", "transform-origin" : "bottom"},
+        'to':  {"transform" : "scale(1,0)", "opacity" : "0", "transform-origin" : "bottom"}
+    }]);
+    $("#boss").resetKeyframe();
+    $("#boss").playKeyframe({
+        name: 'smoosh',
+        duration: "1s",
+        "complete" : function(){
+            updating = false;
+        }
+    });
+    $("#newBoss").html(deaths.currentBoss);
+    $.keyframe.define([{
+        name : 'crash',
+        'from':   {"transform" : "translateY(-100%)", "overflow" : "hidden", "white-space" : "nowrap", "width" : "375px"},
+        'to':  {"transform" : "translateY(0%)", "overflow" : "hidden", "white-space" : "nowrap", "width" : "375px" }
+    }]);
+    $("#newBoss").playKeyframe({
+        name: 'crash',
+        duration: "1s",
+        "complete" : function(){
+            $("#boss").html(deaths.currentBoss);
+            $("#boss").resetKeyframe();
+            $("#newBoss").html("");
+            $("#newBoss").resetKeyframe();
+        }
+    });
+    $("#currentDeaths").hide();
+    $("#currentDeaths").html(deaths.currentDeaths).fadeIn(1000);
+}
+
+function toggleBoss(bossFinished)  {
+    updating = true;
+    if(deaths.currentBoss === "") {
+        return;
+    }
+    if(bossFinished) {
+        deaths.bosses[deaths.currentBoss].killed = true;
+    }
+    console.log(deaths.currentBoss);
+    deaths.onBoss = !deaths.onBoss;
+    transformDeathDiv(deaths.onBoss, true);
+}
+
+$(document).on("keyup", function (e) {
+    e = e || window.event;
+    if(updating) {
+        return;
+    }
+    switch(e.keyCode) {
+        case 117:
+        alterDeathCount(1);
+        break;
+        case 116:
+        alterDeathCount(-1);
+        break;
+        case 115:
+        toggleBoss(false);
+        break;
+        case 113:
+        irc.msg(watchChannel, deaths.currentBoss + " has been slain. " + deaths.currentDeaths + (deaths.currentDeaths === 1 ? " life was " : " lives were ") + "consumed in the attempt.");
+        toggleBoss(true);
+        break;
+    }
+    localStorage.setItem(localStorageName, JSON.stringify(deaths));
+});
+
+</script>
+<body>
+    <div id="wrappingDiv">
+        <div id="deathDiv"><div id="deaths" class="text">Total Deaths</div>&nbsp;<div id="totalDeaths" class="text right"></div></div><br>
+        <div id="bossDiv"><div id="newBoss" class="text"></div><div id="boss" class="text"></div>&nbsp;&nbsp;<div id="currentDeaths" class="text right"></div></div>
+    </div>
+</body>
+</html>

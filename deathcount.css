@@ -1,0 +1,85 @@
+body {
+  overflow: hidden;
+}
+
+.text {
+  position: absolute;
+  font-size: 50px;
+  color: white;
+  display: none;
+  font-family: "Avatar";
+  bottom: 0px;
+}
+
+.right {
+  position: absolute;
+  right: 0%;
+  z-index: 15;
+  width: 150px;
+  background-color: black;
+  text-align: right;
+}
+
+#wrappingDiv {
+  position: absolute;
+  height: auto;
+  display: inline-block;
+  width: 600px;
+  bottom: 25px;
+}
+
+#bossDiv {
+  display: none;
+  width: 600px;
+  height: 3em;
+}
+
+#boss {
+  white-space: nowrap;
+  overflow: hidden;
+  position: absolute;
+  width: 490px;
+  left: 0px;
+  z-index: -1;
+  bottom: -25px;
+}
+
+#newBoss {
+  overflow: hidden;
+  white-space: nowrap;
+  position: absolute;
+  width: 490px;
+  left: 0px;
+  z-index: 10;
+  opacity: .99;
+  bottom: -25px;
+}
+
+#currentDeaths {
+  position: absolute;
+  bottom: -25px;
+}
+
+#deathDiv {
+  background-color: black;
+  position: absolute;
+  width: 600px;
+  z-index: 20;
+  height: 3em;
+  bottom: -25px;
+}
+
+@font-face {
+  font-family: "Trench";
+  src: url('trench100free.ttf');
+}
+
+@font-face {
+  font-family: "Avatar";
+  src: url('Avatar.ttf');
+}
+
+@font-face {
+  font-family: "OptimusPrinceps";
+  src: url('OptimusPrinceps.ttf');
+}
