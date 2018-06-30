@@ -1,5 +1,5 @@
 # Overview
-Trying to find a great death counter for Twitch is hard at times. Usually, what's available out there is really shoddy and does the job in a half-assed way. So I went ahead and coded my own version that acts like a bot as well. This will store all the variables locally to the browser source in OBS, so as long as you use the same OBS browser client, you will always have access to the data for the Death Counter. The neat thing about this death counter is that it won't just track total deaths, but it'll also track deaths on bosses as well. So if you're curious how badly you did on particular bosses after beating a game, you'll get detailed stats on total deaths plus deaths for each boss.
+Trying to find a great death counter for Twitch is hard at times. Usually, what's available out there is really shoddy and does the job in a half-assed way. So I went ahead and coded my own version that acts like a bot as well. This will store all the variables locally to the browser source in OBS, so as long as you use the same OBS program, you will always have access to the data for the Death Counter. The neat thing about this death counter is that it won't just track total deaths, but it'll also track deaths on bosses as well. So if you're curious how badly you did on particular bosses after beating a game, you'll get detailed stats on total deaths plus deaths for each boss.
 
 This death counter also allows for saving a death counter for one game and starting another game that needs a death counter, then loading the data back into the death counter for the saved game. Meaning you can change games at whim, as long as you don't overflow the browser local storage character limit.
 
@@ -63,10 +63,13 @@ There's an .ahk file in the included files that I use to update deaths on my end
 
 To get it to work, you need to right click on the death counter browser source and select Interact. This will open up a new window. You can hide this behind something else on your screen, as long as it is open. With the .ahk file or .exe file running, you can press the following keys to update the death counter in various ways.
 ## F2
-Does the same thing as the "boss clear" command.
+Does the same thing as the ["boss clear" command](https://github.com/firynth/DeathCounter/blob/master/README.md#boss-clear).
 ## F4
-Does the same thing as the "boss" command without the clear argument.
+Does the same thing as the ["boss" command](https://github.com/firynth/DeathCounter/blob/master/README.md#boss-clear) without the clear argument.
 ## F5
 Reduces the deaths, and boss if toggled, by one
 ## F6
 Increases the deaths, and boss if toggled, by one
+
+# Notes
+If you have any programming experience, feel free to make changes as you see fit. Use issues to report issues with the death counter's functionality or suggest possible changes to the death counter. If there's any questions, feel free to [Tweet me](https://twitter.com/firynth) and if I'm able to, I'll help you out with your questions.
