@@ -5,6 +5,8 @@ This death counter also allows for saving a death counter for one game and start
 
 Commands that alter what's displayed in the stream will be locked down until the animations finish. Meaning if you add a death, the animation has to finish before another one can be added. This prevents things like two mods adding a death at the same time, as the animation for the first command to trigger the death counter has to finish before a new command can be accepted.
 
+Currently, I only know that this works for OBS-Studio completely. There are no plans to support StreamLabs OBS or XSplit, but it doesn't mean that some of the features of the Death Counter won't work in either. Try what you can and see what works. The only thing I know that doesn't work in StreamLabs OBS at this point is the AutoHotKey script/executable. I have not been told if the other portions of the bot don't work.
+
 # Installation
 Make sure all the files are in the same folder, otherwise, the program will fail.
 
@@ -21,26 +23,25 @@ You can change the font of the text by editting the .css file. I have it default
 # Commands 
 There are several default commands I've added to the bot portion of the death counter. This is an explanation of the commands.
 
-irc.msg(channel, "Usage: [+|-|set] <num> | [newboss|changename] <bossname> | boss (clear) | resume | finish | reset | list | gamename <game name> | save | load <game name> | gamelist | fullreset");
-  ## +|-|set <num>
+  ## +|-|set (num)
   This should be fairly intuitive, but just to explain. + will increase the deaths, - will decrease the deaths, and set will set the **TOTAL DEATHS** to the number specified. Set requires that the new number be greater than the currently displayed amount in order to work. <num> is the number to increase/decrease/set the total deaths to. If no number is specified, it will increase/decrease by 1 and spit out an error message for set.
-  ## newboss <bossname>
+  ## newboss (bossname)
   This command will create a new boss to track the number of deaths for. You can give it whatever name you want. The counter will update to display that you are currently fighting this boss and usage of +|-|set will also increase the deaths for this boss. Boss names have to be unique, so if you fight the same boss multiple times, you will need to add extra identifiers like "Boss #2" or whatever you want.
   You can also start a new boss without clearing a boss. Useful if you find a boss too hard and you go exploring and find another boss to fight. Create the new boss and the other boss will be saved off to be resumed later when you end up back at it.
-  ## changename <bossname>
+  ## changename (bossname)
   This command allows you to change the current boss' name from what you specified, to something else. As long as the boss isn't cleared (next command). Still abides by the unique rule. Use list to see the names of bosses you have already used.
   ## boss (clear)
   Boss without the clear argument, meaning if you use anything else but clear, will toggle the boss portion of the death counter from showing. When the boss portion is shown, the deaths for the boss will update. When it's not shown, only total deaths will be updated. This is useful if you find you need to backtrack through a hard area so that the deaths you may encounter there won't be added to the boss.
   The clear argument finalizes your attempts against the boss and locks down the boss from further editting. This will auto-hide the boss section of the death counter and spit out some text to chat
-  ## resume <bossname>
+  ## resume (bossname)
   Resumes a boss that hasn't been finished yet. The name needs to be the same as what was used when it was created with newboss. Use list to see the names of bosses you've used if you've forgotten it.
   ## list
   This displays a list of bosses in the death counter and the deaths for each boss. Useful for resuming bosses or just seeing where your deaths have been when talking to chat.
-  ## gamename <game name>
+  ## gamename (game name)
   This feature gives the current death counter a name you specify. This is used for saving a death counter so that it can be loaded at a later time.
   ## save
   If the current death counter was given a game name, this saves the death counter to storage and resets the death counter so you can use it for another game.
-  ## load <game name>
+  ## load (game name)
   This will load a previously saved death counter, allowing you to resume tracking deaths when you start up attempts on a game you previously shelved for whatever reason. If the current death counter has a name, it will save it to storage and load the other counter. If it doesn't have a name, the death counter has to be reset or given a name in order to use this function.
   ## gamelist
   Shows a list of saved death counter names so that you can use load to reload the data for that death counter back into active memory.
@@ -54,6 +55,18 @@ irc.msg(channel, "Usage: [+|-|set] <num> | [newboss|changename] <bossname> | bos
   ## Broadcaster Only Commands
   ### enablemod
   Mods are able to use the death counter innately. If you don't want your mods to be able to use the death counter commands, use this to disable their ability to use it. If it is disabled, you can use this commands to re-enable the ability for mods to use the death counter commands.
-  ### adduser/deluser <user>
+  ### adduser/deluser (user)
   Specify the Twitch name of a user and this person will be allowed to use the death counter without needing to be a mod, or be able to use it if you have disabled mods being able to use innately. Add will add the user. Del will delete the user from the list.
 
+# Autohotkey (.ahk) file
+There's an .ahk file in the included files that I use to update deaths on my end without typing in chat. This uses a neat feature of OBS-Studio that allows you to interact with Browser Sources that are in your scenes. If you have AutoHotKey installed, you can run the .ahk file by itself (run as admin), otherwise, download this [.exe file](https://www.dropbox.com/s/giedk1q64da168v/DeathCounter.exe?dl=0) and run that as an administrator.
+
+To get it to work, you need to right click on the death counter browser source and select Interact. This will open up a new window. You can hide this behind something else on your screen, as long as it is open. With the .ahk file or .exe file running, you can press the following keys to update the death counter in various ways.
+## F2
+Does the same thing as the "boss clear" command.
+## F4
+Does the same thing as the "boss" command without the clear argument.
+## F5
+Reduces the deaths, and boss if toggled, by one
+## F6
+Increases the deaths, and boss if toggled, by one
