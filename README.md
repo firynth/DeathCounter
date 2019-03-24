@@ -33,6 +33,8 @@ There are several default commands I've added to the bot portion of the death co
   ## boss (clear)
   Boss without the clear argument, meaning if you use anything else but clear, will toggle the boss portion of the death counter from showing. When the boss portion is shown, the deaths for the boss will update. When it's not shown, only total deaths will be updated. This is useful if you find you need to backtrack through a hard area so that the deaths you may encounter there won't be added to the boss.
   The clear argument finalizes your attempts against the boss and locks down the boss from further editting. This will auto-hide the boss section of the death counter and spit out some text to chat
+  ## unclear (bossname)
+  Resumes a boss that has been finished. The name needs to be the same as what was used when it was created with newboss. Use list to see the names of bosses you've used if you've forgotten it.
   ## resume (bossname)
   Resumes a boss that hasn't been finished yet. The name needs to be the same as what was used when it was created with newboss. Use list to see the names of bosses you've used if you've forgotten it.
   ## list
