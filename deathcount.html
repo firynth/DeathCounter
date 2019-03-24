@@ -195,6 +195,36 @@ irc.on("message", function(channel, user, chatText, message) {
                 toggleBoss(kill);
                 break;
             }
+            case "unclear":
+            {
+                var name = args.slice(2).join(" ");
+                if(deaths.bosses[name] !== undefined) {
+                    if(deaths.bosses[name].killed) {
+                        deaths.bosses[name].killed = false;
+                        deaths.currentBoss = deaths.bosses[name].name;
+                        deaths.currentDeaths = deaths.bosses[name].deaths;
+                        //Update html
+                        if(deaths.onBoss) {
+                            updateBoss();
+                        } else {
+                            $.when(transformDeathDiv(true, true)).then(function () {
+                                setTimeout(function() {
+                                    updateBoss();
+                                    deaths.onBoss = true;
+                                    localStorage.setItem(localStorageName, JSON.stringify(deaths));
+                                }, 1200);
+                            });
+                        }
+                        irc.msg(channel, deaths.bosses[name].name + " has been uncleared. You can update deaths again.");
+                    } else {
+                        irc.msg(channel, deaths.bosses[name].name + " was not previously cleared.");
+                    }
+
+                } else {
+                    irc.msg(channel, "That boss does not exist.");
+                }
+                break;
+            }
             case "reset":
             {
                 if(!checkMod(message, channel, user)) {
@@ -451,7 +481,7 @@ irc.on("message", function(channel, user, chatText, message) {
                     return;
                 }
 
-                irc.msg(channel, "Usage: [+|-|set] <num> | [newboss|changename] <bossname> | boss (clear) | resume | finish | reset | list | gamename <game name> | " +
+                irc.msg(channel, "Usage: [+|-|set] <num> | [newboss|changename] <bossname> | boss (clear) | unclear <bossname> | resume | finish | reset | list | gamename <game name> | " +
                  "save | load <game name> | gamelist | fullreset");
                 //irc.msg(channel, "Usage: + [num]/- [num]/newboss <boss name>/changename <boss name>/boss (clear)/resume/finish/reset/list")
             }
