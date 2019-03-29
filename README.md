@@ -37,6 +37,8 @@ There are several default commands I've added to the bot portion of the death co
   Resumes a boss that has been finished. The name needs to be the same as what was used when it was created with newboss. Use list to see the names of bosses you've used if you've forgotten it.
   ## resume (bossname)
   Resumes a boss that hasn't been finished yet. The name needs to be the same as what was used when it was created with newboss. Use list to see the names of bosses you've used if you've forgotten it.
+  ## unfinished
+  Shows a list of bosses that haven't been cleared yet. Makes it easier to find the name used for a boss so you can use it with the resume command to resume attempts on a boss.
   ## list
   This displays a list of bosses in the death counter and the deaths for each boss. Useful for resuming bosses or just seeing where your deaths have been when talking to chat.
   ## gamename (game name)
