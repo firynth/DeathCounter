@@ -528,11 +528,18 @@ function updateStorage() {
 function checkMod (message, channel, user) {
     if(channel === "#" + user) {
         return true;
-    } else if(message.tags["user-type"] === "mod" && users.mod_enabled) {
+    } else if(isTwitchMod(message) && users.mod_enabled) {
         return true;
     } else if(users.array.findIndex(function(u) {
         return u === user;
     }) !== -1) {
+        return true;
+    }
+    return false;
+}
+
+function isTwitchMod(message) {
+    if(message.tags["badges"].includes("moderator")) {
         return true;
     }
     return false;
