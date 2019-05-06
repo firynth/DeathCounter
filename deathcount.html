@@ -197,6 +197,9 @@ irc.on("message", function(channel, user, chatText, message) {
             }
             case "unclear":
             {
+                if(!checkMod(message, channel, user)) {
+                    return;
+                }
                 var name = args.slice(2).join(" ");
                 if(deaths.bosses[name] !== undefined) {
                     if(deaths.bosses[name].killed) {
