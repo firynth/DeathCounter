@@ -698,10 +698,10 @@ function updateBoss() {
 }
 
 function toggleBoss(bossFinished)  {
-    updating = true;
     if(deaths.currentBoss === "") {
         return;
     }
+    updating = true;
     if(bossFinished) {
         deaths.bosses[deaths.currentBoss].killed = true;
     }
@@ -723,12 +723,21 @@ $(document).on("keyup", function (e) {
         alterDeathCount(-1);
         break;
         case 115:
-        toggleBoss(false);
-        break;
+        {
+            if(deaths.bosses[deaths.currentBoss].killed && !deaths.onBoss) {
+                return;
+            }
+            toggleBoss(false);
+            break;
+        }
         case 113:
-        irc.msg(watchChannel, deaths.currentBoss + " has been slain. " + deaths.currentDeaths + (deaths.currentDeaths === 1 ? " life was " : " lives were ") + "consumed in the attempt.");
-        toggleBoss(true);
-        break;
+        {
+            if(deaths.onBoss) {
+                irc.msg(watchChannel, deaths.currentBoss + " has been slain. " + deaths.currentDeaths + (deaths.currentDeaths === 1 ? " life was " : " lives were ") + "consumed in the attempt.");
+                toggleBoss(true);
+            }
+            break;
+        }
     }
     localStorage.setItem(localStorageName, JSON.stringify(deaths));
 });
